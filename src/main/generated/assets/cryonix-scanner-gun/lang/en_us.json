@@ -1,0 +1,14 @@
+{
+  "item.cryonix.laser_charge_lv1": "Laser Charge Lv.1",
+  "item.cryonix.laser_charge_lv2": "Laser Charge Lv.2",
+  "item.cryonix.laser_charge_lv3": "Laser Charge Lv.3",
+  "item.cryonix.scanner_gun": "Scanner-Gun",
+  "itemGroup.cryonix.titleGroup": "Cryonix: Scanner-gun Mod",
+  "message.cryonix.cooldown": "Cooling down...",
+  "message.cryonix.low_battery": "Low battery",
+  "message.cryonix.reload.none": "No Laser Charges or energy is full",
+  "message.cryonix.reload.success": "Recharged +%s (%s/%s)",
+  "message.cryonix.scan.block": "Block: %s — %s m",
+  "message.cryonix.scan.entity": "Entity: %s — %s m",
+  "message.cryonix.scan.none": "Nothing detected"
+}

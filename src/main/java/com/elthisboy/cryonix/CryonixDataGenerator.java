@@ -2,6 +2,7 @@ package com.elthisboy.cryonix;
 
 import net.fabricmc.fabric.api.datagen.v1.DataGeneratorEntrypoint;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
+import com.elthisboy.cryonix.data.provider.*;
 
 public class CryonixDataGenerator implements DataGeneratorEntrypoint {
     @Override

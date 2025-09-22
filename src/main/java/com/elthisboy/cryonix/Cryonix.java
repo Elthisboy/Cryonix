@@ -1,5 +1,6 @@
 package com.elthisboy.cryonix;
 
+import com.elthisboy.cryonix.init.*;
 import net.fabricmc.api.ModInitializer;
 
 import net.minecraft.util.Identifier;
