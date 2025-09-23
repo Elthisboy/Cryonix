@@ -1,5 +1,6 @@
 package com.elthisboy.cryonix.custom;
 
+import com.elthisboy.cryonix.networking.CryonixNetworking;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -16,6 +17,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.tag.TagKey;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
@@ -29,9 +31,10 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.*;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
-import net.minecraft.registry.tag.BlockTags;
+import com.elthisboy.cryonix.networking.CryonixNetworking;
 
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class ScannerGunItem extends Item {
@@ -47,20 +50,29 @@ public class ScannerGunItem extends Item {
     private static final int AOE_GLOW_TICKS = 20 * 4;   // glow a mobs del AOE (4s)
     private static final int AOE_MAX_POINTS = 60;       // límite de partículas
 
-    public ScannerGunItem(Settings settings) { super(settings); }
+    // Tag de "todos los ores" (common tags: c:ores)
+    private static final TagKey<Block> ALL_ORES =
+            TagKey.of(RegistryKeys.BLOCK, Identifier.of("c", "ores"));
+
+    /* ====== Datos para construir el HUD (solo nombres/distancias) ====== */
+    public static class FoundBlock {
+        public final String name; public final double dist;
+        public FoundBlock(String name, double dist) { this.name = name; this.dist = dist; }
+    }
+    public static class FoundMob {
+        public final String name; public final double dist;
+        public FoundMob(String name, double dist) { this.name = name; this.dist = dist; }
+    }
+
+    public ScannerGunItem(Settings settings) { super(settings.maxCount(1)); }
 
     /* ====== Barra de energía (durability bar) ====== */
-    @Override
-    public boolean isItemBarVisible(ItemStack stack) { return getEnergy(stack) < MAX_ENERGY; }
-
-    @Override
-    public int getItemBarStep(ItemStack stack) {
+    @Override public boolean isItemBarVisible(ItemStack stack) { return getEnergy(stack) < MAX_ENERGY; }
+    @Override public int getItemBarStep(ItemStack stack) {
         float pct = (float) getEnergy(stack) / (float) MAX_ENERGY;
         return Math.round(pct * 13.0f);
     }
-
-    @Override
-    public int getItemBarColor(ItemStack stack) {
+    @Override public int getItemBarColor(ItemStack stack) {
         float pct = (float) getEnergy(stack) / (float) MAX_ENERGY;
         float hue = MathHelper.lerp(pct, 0.55f, 0.60f); // cian -> azul
         int rgb = java.awt.Color.HSBtoRGB(hue, 0.9f, 1.0f);
@@ -72,20 +84,18 @@ public class ScannerGunItem extends Item {
         NbtComponent comp = stack.get(DataComponentTypes.CUSTOM_DATA);
         return comp != null ? comp.copyNbt() : new NbtCompound();
     }
-
     private static void writeCustom(ItemStack stack, NbtCompound tag) {
         stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
     }
-
-    private int getEnergy(ItemStack stack) {
+    /** Público por si quieres leer energía desde otros lados. */
+    public int getEnergy(ItemStack stack) {
         NbtCompound tag = readCustom(stack);
         if (!tag.contains(NBT_ENERGY)) {
-            tag.putInt(NBT_ENERGY, MAX_ENERGY); // por defecto llena
+            tag.putInt(NBT_ENERGY, MAX_ENERGY);
             writeCustom(stack, tag);
         }
         return tag.getInt(NBT_ENERGY);
     }
-
     private void setEnergy(ItemStack stack, int value) {
         NbtCompound tag = readCustom(stack);
         tag.putInt(NBT_ENERGY, MathHelper.clamp(value, 0, MAX_ENERGY));
@@ -96,8 +106,7 @@ public class ScannerGunItem extends Item {
     private boolean tryReloadFromInventory(PlayerEntity player, ItemStack scanner) {
         int current = getEnergy(scanner);
         if (current >= MAX_ENERGY) return false;
-
-        int[] prios = {200, 100, 50}; // Lv3->Lv2->Lv1
+        int[] prios = {200, 100, 50};
         for (int want : prios) {
             int slot = findChargeSlot(player, want);
             if (slot != -1) {
@@ -124,7 +133,6 @@ public class ScannerGunItem extends Item {
         }
         return false;
     }
-
     private int findChargeSlot(PlayerEntity player, int amount) {
         for (int i = 0; i < player.getInventory().size(); i++) {
             ItemStack s = player.getInventory().getStack(i);
@@ -145,7 +153,7 @@ public class ScannerGunItem extends Item {
             return TypedActionResult.success(stack, world.isClient());
         }
 
-        // Cooldown y energía
+        // Cooldown + energía
         if (player.getItemCooldownManager().isCoolingDown(this)) {
             player.sendMessage(Text.translatable("message.cryonix.cooldown"), true);
             return TypedActionResult.success(stack, world.isClient());
@@ -156,13 +164,13 @@ public class ScannerGunItem extends Item {
             return TypedActionResult.success(stack, world.isClient());
         }
 
-        // 1) Raycast de detección EXACTO a donde miras (desde los ojos)
+        // 1) Raycast exacto desde los ojos
         float tickDelta = 0f;
         Vec3d eye = player.getCameraPosVec(tickDelta);
         Vec3d look = player.getRotationVec(tickDelta).normalize();
         Vec3d aimEnd = eye.add(look.multiply(RANGE));
 
-        // Bloques
+        // Bloque
         BlockHitResult blockHit = world.raycast(new RaycastContext(
                 eye, aimEnd,
                 RaycastContext.ShapeType.OUTLINE,
@@ -171,14 +179,14 @@ public class ScannerGunItem extends Item {
         ));
         double blockDist2 = blockHit != null ? blockHit.getPos().squaredDistanceTo(eye) : Double.POSITIVE_INFINITY;
 
-        // Entidades (hitbox)
+        // Entidades
         EntityHitResult entityHit = raycastEntities(world, player, eye, aimEnd);
         double entityDist2 = entityHit != null ? entityHit.getPos().squaredDistanceTo(eye) : Double.POSITIVE_INFINITY;
 
-        // Elige el impacto más cercano al ojo
+        // Escoge el impacto más cercano
         HitResult finalHit = (entityDist2 < blockDist2) ? entityHit : blockHit;
 
-        // 2) Partículas: desde la MANO usada hasta el punto impactado
+        // 2) Partículas desde la mano usada
         if (world.isClient()) {
             Vec3d beamStart = getHandPos(player, tickDelta, hand);
             Vec3d beamEnd = (finalHit != null) ? finalHit.getPos() : aimEnd;
@@ -197,11 +205,8 @@ public class ScannerGunItem extends Item {
             player.sendMessage(Text.translatable("message.cryonix.scan.block",
                     state.getBlock().getName(), String.format("%.1f", dist)), true);
 
-            // “Glow” simulado (contorno de partículas) en el bloque
             if (world.isClient()) spawnBlockOutlineParticles(world, pos);
-
-            // Escaneo en área alrededor del impacto
-            scanSurroundings(world, pos, player);
+            scanSurroundings(world, pos, player, stack);
 
         } else if (finalHit.getType() == HitResult.Type.ENTITY) {
             EntityHitResult eh = (EntityHitResult) finalHit;
@@ -210,13 +215,10 @@ public class ScannerGunItem extends Item {
             player.sendMessage(Text.translatable("message.cryonix.scan.entity",
                     e.getDisplayName(), String.format("%.1f", dist)), true);
 
-            // Glow real a mobs
             if (!world.isClient() && e instanceof LivingEntity living) {
                 living.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 20 * 5, 0, false, true));
             }
-
-            // Escaneo en área alrededor de la entidad impactada
-            scanSurroundings(world, e.getBlockPos(), player);
+            scanSurroundings(world, e.getBlockPos(), player, stack);
         }
 
         // 4) Sonido + consumo + cooldown
@@ -233,9 +235,7 @@ public class ScannerGunItem extends Item {
         Vec3d up = new Vec3d(0, 1, 0);
         Vec3d right = forward.crossProduct(up).normalize();
 
-        boolean rightSide;
-        if (usedHand == Hand.MAIN_HAND) rightSide = (player.getMainArm() == Arm.RIGHT);
-        else rightSide = (player.getMainArm() == Arm.LEFT);
+        boolean rightSide = (usedHand == Hand.MAIN_HAND) ? (player.getMainArm() == Arm.RIGHT) : (player.getMainArm() == Arm.LEFT);
         if (!rightSide) right = right.multiply(-1);
 
         double side = 0.35;   // lateral
@@ -244,18 +244,13 @@ public class ScannerGunItem extends Item {
         return eye.add(right.multiply(side)).add(0, -down, 0).add(forward.multiply(fwd));
     }
 
-    /* ====== Raycast de entidades (hitbox) a lo largo de la línea de mira ====== */
+    /* ====== Raycast de entidades ====== */
     private EntityHitResult raycastEntities(World world, PlayerEntity player, Vec3d start, Vec3d end) {
         Box search = new Box(start, end).expand(1.0);
         List<Entity> entities = world.getOtherEntities(
-                player,
-                search,
-                e -> e != player
-                        && e.isAlive()
-                        && !e.isSpectator()
-                        && e.isAttackable()
+                player, search,
+                e -> e != player && e.isAlive() && !e.isSpectator() && e.isAttackable()
         );
-
         Entity closest = null;
         Vec3d closestHitPos = null;
         double closestDist2 = Double.POSITIVE_INFINITY;
@@ -290,7 +285,7 @@ public class ScannerGunItem extends Item {
         }
     }
 
-    /* ====== “Glow” simulado en bloque (contorno de partículas) ====== */
+    /* ====== “Glow” simulado en bloque ====== */
     private void spawnBlockOutlineParticles(World world, BlockPos pos) {
         double min = 0.002, max = 0.998, step = 0.2;
         double x = pos.getX(), y = pos.getY(), z = pos.getZ();
@@ -312,14 +307,17 @@ public class ScannerGunItem extends Item {
     }
 
     /* ====== AOE: escaneo en radio alrededor del impacto ====== */
-    private void scanSurroundings(World world, BlockPos center, PlayerEntity player) {
+    private void scanSurroundings(World world, BlockPos center, PlayerEntity player, ItemStack scannerStack) {
         int foundOres = 0;
         int foundMobs = 0;
 
         int r = AOE_RADIUS;
         int budget = AOE_MAX_POINTS;
 
-        // BLOQUES importantes (ores + cobre/variantes)
+        List<FoundBlock> hudBlocks = new ArrayList<>();
+        List<FoundMob>   hudMobs   = new ArrayList<>();
+
+        // BLOQUES importantes
         for (int dx = -r; dx <= r; dx++) {
             for (int dy = -r; dy <= r; dy++) {
                 for (int dz = -r; dz <= r; dz++) {
@@ -332,12 +330,16 @@ public class ScannerGunItem extends Item {
                             Vec3d c = Vec3d.ofCenter(p);
                             world.addParticle(ParticleTypes.GLOW, c.x, c.y, c.z, 0, 0, 0);
                         }
+                        BlockState st = world.getBlockState(p);
+                        String n = st.getBlock().getName().getString();
+                        double d = Math.sqrt(player.squaredDistanceTo(p.getX()+0.5, p.getY()+0.5, p.getZ()+0.5));
+                        hudBlocks.add(new FoundBlock(n, d));
                     }
                 }
             }
         }
 
-        // MOBS (LivingEntity)
+        // MOBS
         Box box = new Box(
                 center.getX() - r, center.getY() - r, center.getZ() - r,
                 center.getX() + r + 1, center.getY() + r + 1, center.getZ() + r + 1
@@ -345,7 +347,6 @@ public class ScannerGunItem extends Item {
         List<LivingEntity> entities = world.getEntitiesByClass(LivingEntity.class, box, e -> e.isAlive() && !e.isSpectator());
         foundMobs = entities.size();
 
-        // Glow a mobs (server) + partículas cliente
         if (!world.isClient()) {
             for (LivingEntity living : entities) {
                 living.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, AOE_GLOW_TICKS, 0, false, true));
@@ -358,27 +359,39 @@ public class ScannerGunItem extends Item {
                 world.addParticle(ParticleTypes.END_ROD, c.x, c.y, c.z, 0, 0.01, 0);
             }
         }
+        for (LivingEntity e : entities) {
+            String n = e.getDisplayName().getString();
+            double d = e.distanceTo(player);
+            hudMobs.add(new FoundMob(n, d));
+        }
 
         // Mensaje resumen
         player.sendMessage(Text.translatable("message.cryonix.scan.aoe",
                 String.valueOf(foundOres), String.valueOf(foundMobs)), true);
-    }
 
-    // Tag global de ores (common tags)
-    private static final TagKey<Block> ALL_ORES =
-            TagKey.of(RegistryKeys.BLOCK, Identifier.of("c", "ores"));
+        // Enviar paquete S2C (solo servidor)
+        if (!world.isClient() && player instanceof ServerPlayerEntity spe) {
+            List<String> blocksN = new ArrayList<>();
+            List<Double> blocksD = new ArrayList<>();
+            for (FoundBlock fb : hudBlocks) { blocksN.add(fb.name); blocksD.add(fb.dist); }
+
+            List<String> mobsN = new ArrayList<>();
+            List<Double> mobsD = new ArrayList<>();
+            for (FoundMob fm : hudMobs) { mobsN.add(fm.name); mobsD.add(fm.dist); }
+
+            int energyNow = getEnergy(scannerStack);
+            CryonixNetworking.sendScanResults(spe, blocksN, blocksD, mobsN, mobsD, energyNow, MAX_ENERGY);
+        }
+    }
 
     private boolean isImportantBlock(World world, BlockPos p) {
         BlockState state = world.getBlockState(p);
         if (state.isAir()) return false;
+        if (state.isIn(ALL_ORES)) return true; // todos los ores (incluye mods que usen c:ores)
 
-        // 1) Cualquier ore vía tag c:ores (stone, deepslate, nether, end, y de otros mods)
-        if (state.isIn(ALL_ORES)) return true;
-
-        // 2) (Opcional) también considerar bloques compactados como importantes
-        var b = state.getBlock();
-        return b == Blocks.COPPER_BLOCK
-                || b == Blocks.RAW_COPPER_BLOCK
+        // (Opcional) bloques compactados
+        Block b = state.getBlock();
+        return b == Blocks.RAW_COPPER_BLOCK
                 || b == Blocks.COAL_BLOCK
                 || b == Blocks.IRON_BLOCK
                 || b == Blocks.GOLD_BLOCK
@@ -386,6 +399,7 @@ public class ScannerGunItem extends Item {
                 || b == Blocks.EMERALD_BLOCK
                 || b == Blocks.LAPIS_BLOCK
                 || b == Blocks.REDSTONE_BLOCK
-                || b == Blocks.NETHERITE_BLOCK;
+                || b == Blocks.NETHERITE_BLOCK
+                || b == Blocks.COPPER_BLOCK;
     }
 }

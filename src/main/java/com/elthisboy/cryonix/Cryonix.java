@@ -1,6 +1,7 @@
 package com.elthisboy.cryonix;
 
 import com.elthisboy.cryonix.init.*;
+import com.elthisboy.cryonix.networking.CryonixNetworking;
 import net.fabricmc.api.ModInitializer;
 
 import net.minecraft.util.Identifier;
@@ -18,7 +19,6 @@ public class Cryonix implements ModInitializer {
 		ItemInit.load();
 		BlockInit.load();
 		ItemGroupInit.load();
-
 		LOGGER.info("Load!");
 	}
 
