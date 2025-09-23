@@ -43,7 +43,11 @@ public class CryonixLanguageProvider extends FabricLanguageProvider {
         translationBuilder.add("message.cryonix.scan.none", "Nothing detected");
         translationBuilder.add("message.cryonix.scan.block", "Block: %s — %s m");
         translationBuilder.add("message.cryonix.scan.entity", "Entity: %s — %s m");
+        translationBuilder.add("message.cryonix.scan.aoe", "Around: %s ores, %s mobs");
+
+
     }
+
 
 }
 

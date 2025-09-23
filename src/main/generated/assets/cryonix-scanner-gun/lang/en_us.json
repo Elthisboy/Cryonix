@@ -8,6 +8,7 @@
   "message.cryonix.low_battery": "Low battery",
   "message.cryonix.reload.none": "No Laser Charges or energy is full",
   "message.cryonix.reload.success": "Recharged +%s (%s/%s)",
+  "message.cryonix.scan.aoe": "Around: %s ores, %s mobs",
   "message.cryonix.scan.block": "Block: %s — %s m",
   "message.cryonix.scan.entity": "Entity: %s — %s m",
   "message.cryonix.scan.none": "Nothing detected"
