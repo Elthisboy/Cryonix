@@ -35,7 +35,9 @@ import com.elthisboy.cryonix.networking.CryonixNetworking;
 
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ScannerGunItem extends Item {
     /* ====== Config ====== */
@@ -47,7 +49,7 @@ public class ScannerGunItem extends Item {
 
     // AOE (escaneo en radio alrededor del impacto)
     private static final int AOE_RADIUS = 6;            // radio del barrido
-    private static final int AOE_GLOW_TICKS = 20 * 4;   // glow a mobs del AOE (4s)
+    private static final int AOE_GLOW_TICKS = 20 * 3;   // glow a mobs del AOE (3s)
     private static final int AOE_MAX_POINTS = 60;       // límite de partículas
 
     // Tag de "todos los ores" (common tags: c:ores)
@@ -306,18 +308,54 @@ public class ScannerGunItem extends Item {
         }
     }
 
-    /* ====== AOE: escaneo en radio alrededor del impacto ====== */
-    private void scanSurroundings(World world, BlockPos center, PlayerEntity player, ItemStack scannerStack) {
-        int foundOres = 0;
-        int foundMobs = 0;
 
-        int r = AOE_RADIUS;
+    // ===== Aux internos para agrupar =====
+    private static final class BlockAgg {
+        final net.minecraft.util.Identifier id;
+        final String display;
+        int count = 1;
+        double minDist;
+        BlockAgg(net.minecraft.util.Identifier id, String display, double d) {
+            this.id = id; this.display = display; this.minDist = d;
+        }
+    }
+
+    private static final class MobAgg {
+        final net.minecraft.util.Identifier id; // p.ej. minecraft:zombie
+        final String baseName;                  // "Zombie", "Unemployed", etc.
+        int count = 1;
+        double minDist;
+        MobAgg(net.minecraft.util.Identifier id, String baseName, double d) {
+            this.id = id; this.baseName = baseName; this.minDist = d;
+        }
+    }
+
+    private static String prettyName(String path) {
+        if (path == null || path.isEmpty()) return "Unknown";
+        String s = path.replace('_', ' ');
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+
+    /** Escanea alrededor del impacto: ores y mobs en un radio.
+     *  - Agrupa menas/mobs por nombre con "×N", guardando distancia mínima por grupo.
+     *  - Spawnea partículas en ores y perímetro del AOE (cliente).
+     *  - Aplica GLOW a mobs y coloca luz temporal sobre ores y cerca de mobs (servidor).
+     *  - Envía al HUD nombres, distancias e IDs para dibujar íconos.
+     */
+    private void scanSurroundings(World world, BlockPos center, PlayerEntity player, ItemStack scannerStack) {
+        final int r = AOE_RADIUS;
         int budget = AOE_MAX_POINTS;
 
-        List<FoundBlock> hudBlocks = new ArrayList<>();
-        List<FoundMob>   hudMobs   = new ArrayList<>();
+        // ====== MENAS AGRUPADAS (nombre -> grupo) con id de bloque representativo ======
+        class GroupB {
+            int count = 0;
+            double minDist = Double.POSITIVE_INFINITY;
+            net.minecraft.util.Identifier blockId = null;
+        }
+        java.util.Map<String, GroupB> oreGroups = new java.util.HashMap<>();
+        int totalOres = 0;
 
-        // BLOQUES importantes
         for (int dx = -r; dx <= r; dx++) {
             for (int dy = -r; dy <= r; dy++) {
                 for (int dz = -r; dz <= r; dz++) {
@@ -325,63 +363,165 @@ public class ScannerGunItem extends Item {
                     if (center.getSquaredDistance(p) > (r * r)) continue;
 
                     if (isImportantBlock(world, p)) {
-                        foundOres++;
+                        totalOres++;
+
+                        // Partículas en la mena (CLIENTE)
                         if (world.isClient() && budget-- > 0) {
                             Vec3d c = Vec3d.ofCenter(p);
                             world.addParticle(ParticleTypes.GLOW, c.x, c.y, c.z, 0, 0, 0);
+                            world.addParticle(ParticleTypes.END_ROD, c.x, c.y + 0.1, c.z, 0, 0.01, 0);
+                            // halo
+                            for (int i = 0; i < 6; i++) {
+                                double a = (i / 6.0) * Math.PI * 2.0;
+                                world.addParticle(ParticleTypes.END_ROD,
+                                        c.x + Math.cos(a) * 0.35, c.y + 0.1, c.z + Math.sin(a) * 0.35,
+                                        0, 0.01, 0);
+                            }
                         }
+
+                        // Luz temporal encima (SERVIDOR)
+                        if (!world.isClient() && world instanceof net.minecraft.server.world.ServerWorld sw) {
+                            BlockPos above = p.up();
+                            com.elthisboy.cryonix.util.TempLightManager.placeTemporaryLight(sw, above, 12, 20 * 5);
+                        }
+
+                        // Agrupación + ID de bloque
                         BlockState st = world.getBlockState(p);
-                        String n = st.getBlock().getName().getString();
-                        double d = Math.sqrt(player.squaredDistanceTo(p.getX()+0.5, p.getY()+0.5, p.getZ()+0.5));
-                        hudBlocks.add(new FoundBlock(n, d));
+                        String baseName = st.getBlock().getName().getString();
+                        double dist = Math.sqrt(player.squaredDistanceTo(
+                                p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5));
+                        var id = net.minecraft.registry.Registries.BLOCK.getId(st.getBlock());
+
+                        GroupB g = oreGroups.computeIfAbsent(baseName, k -> new GroupB());
+                        g.count++;
+                        if (dist < g.minDist) g.minDist = dist;
+                        if (g.blockId == null) g.blockId = id;
                     }
                 }
             }
         }
 
-        // MOBS
+        // ====== MOBS AGRUPADOS (nombre -> grupo) con id de entity type representativo ======
+        class GroupM {
+            int count = 0;
+            double minDist = Double.POSITIVE_INFINITY;
+            net.minecraft.util.Identifier typeId = null;
+        }
+        java.util.Map<String, GroupM> mobGroups = new java.util.HashMap<>();
+
         Box box = new Box(
                 center.getX() - r, center.getY() - r, center.getZ() - r,
                 center.getX() + r + 1, center.getY() + r + 1, center.getZ() + r + 1
         );
-        List<LivingEntity> entities = world.getEntitiesByClass(LivingEntity.class, box, e -> e.isAlive() && !e.isSpectator());
-        foundMobs = entities.size();
+        java.util.List<LivingEntity> entities = world.getEntitiesByClass(
+                LivingEntity.class, box, e -> e.isAlive() && !e.isSpectator() && !(e instanceof PlayerEntity)
+        );
 
         if (!world.isClient()) {
+            // Glow a mobs + luz cerca de la cabeza (SERVIDOR)
             for (LivingEntity living : entities) {
                 living.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, AOE_GLOW_TICKS, 0, false, true));
             }
+            if (world instanceof net.minecraft.server.world.ServerWorld sw) {
+                for (LivingEntity living : entities) {
+                    placeLightNearEntity(sw, living, 12, 20 * 5);
+                }
+            }
         } else {
-            int mobBudget = Math.min(entities.size(), AOE_MAX_POINTS / 2);
+            // Marcadores de mobs (CLIENTE)
+            int mobBudget = Math.min(entities.size(), Math.max(4, AOE_MAX_POINTS / 2));
             for (int i = 0; i < mobBudget; i++) {
                 LivingEntity e = entities.get(i);
                 Vec3d c = e.getPos().add(0, e.getHeight() * 0.6, 0);
                 world.addParticle(ParticleTypes.END_ROD, c.x, c.y, c.z, 0, 0.01, 0);
             }
         }
+
         for (LivingEntity e : entities) {
-            String n = e.getDisplayName().getString();
-            double d = e.distanceTo(player);
-            hudMobs.add(new FoundMob(n, d));
+            String baseName = e.getDisplayName().getString();
+            double dist = e.distanceTo(player);
+            var id = net.minecraft.registry.Registries.ENTITY_TYPE.getId(e.getType());
+
+            GroupM g = mobGroups.computeIfAbsent(baseName, k -> new GroupM());
+            g.count++;
+            if (dist < g.minDist) g.minDist = dist;
+            if (g.typeId == null) g.typeId = id;
         }
 
-        // Mensaje resumen
-        player.sendMessage(Text.translatable("message.cryonix.scan.aoe",
-                String.valueOf(foundOres), String.valueOf(foundMobs)), true);
+        // ====== Construir listas para HUD (agrupadas y ordenadas) ======
+        java.util.List<FoundBlock> hudBlocks = new java.util.ArrayList<>();
+        java.util.List<String>    blocksId   = new java.util.ArrayList<>();
+        for (var entry : oreGroups.entrySet()) {
+            String baseName = entry.getKey();
+            GroupB g = entry.getValue();
+            String label = (g.count >= 2) ? (baseName + " ×" + g.count) : baseName;
+            hudBlocks.add(new FoundBlock(label, g.minDist));
+            blocksId.add(g.blockId != null ? g.blockId.toString() : "minecraft:stone");
+        }
+        hudBlocks.sort(java.util.Comparator.comparingDouble(b -> b.dist));
 
-        // Enviar paquete S2C (solo servidor)
+        java.util.List<FoundMob> hudMobs = new java.util.ArrayList<>();
+        java.util.List<String>   mobsId  = new java.util.ArrayList<>();
+        for (var entry : mobGroups.entrySet()) {
+            String baseName = entry.getKey();
+            GroupM g = entry.getValue();
+            String label = (g.count >= 2) ? (baseName + " ×" + g.count) : baseName;
+            hudMobs.add(new FoundMob(label, g.minDist));
+            mobsId.add(g.typeId != null ? g.typeId.toString() : "minecraft:pig");
+        }
+        hudMobs.sort(java.util.Comparator.comparingDouble(m -> m.dist));
+
+        // ====== Mensaje resumen ======
+        player.sendMessage(
+                Text.translatable("message.cryonix.scan.aoe",
+                        String.valueOf(totalOres),                 // total menas (sin agrupar)
+                        String.valueOf(entities.size())),          // total mobs (sin agrupar)
+                true
+        );
+
+        // ====== Enviar al HUD (SOLO SERVIDOR) ======
         if (!world.isClient() && player instanceof ServerPlayerEntity spe) {
-            List<String> blocksN = new ArrayList<>();
-            List<Double> blocksD = new ArrayList<>();
+            java.util.List<String> blocksN = new java.util.ArrayList<>();
+            java.util.List<Double> blocksD = new java.util.ArrayList<>();
             for (FoundBlock fb : hudBlocks) { blocksN.add(fb.name); blocksD.add(fb.dist); }
 
-            List<String> mobsN = new ArrayList<>();
-            List<Double> mobsD = new ArrayList<>();
+            java.util.List<String> mobsN = new java.util.ArrayList<>();
+            java.util.List<Double> mobsD = new java.util.ArrayList<>();
             for (FoundMob fm : hudMobs) { mobsN.add(fm.name); mobsD.add(fm.dist); }
 
-            int energyNow = getEnergy(scannerStack);
-            CryonixNetworking.sendScanResults(spe, blocksN, blocksD, mobsN, mobsD, energyNow, MAX_ENERGY);
+            int energyNow = getEnergy(scannerStack); // aunque ya no lo muestres, no molesta
+            CryonixNetworking.sendScanResults(spe, blocksN, blocksD, blocksId, mobsN, mobsD, mobsId, energyNow, MAX_ENERGY);
         }
+
+        // ====== Perímetro visual del radio (SOLO CLIENTE) ======
+        if (world.isClient()) {
+            spawnScanPerimeterParticles(world, center, AOE_RADIUS);
+        }
+    }
+
+
+
+
+
+
+
+
+    /** Luz cerca de la cabeza del mob: busca aire cercano y coloca Blocks.LIGHT temporal. */
+    private static boolean placeLightNearEntity(net.minecraft.server.world.ServerWorld sw,
+                                                LivingEntity e, int level, int ttlTicks) {
+        BlockPos base = BlockPos.ofFloored(e.getX(), e.getY() + e.getStandingEyeHeight(), e.getZ());
+        BlockPos[] candidates = new BlockPos[] {
+                base, base.up(), base.up(2),
+                base.north(), base.south(), base.east(), base.west(),
+                base.north().up(), base.south().up(), base.east().up(), base.west().up(),
+                base.add(1, 1, 1), base.add(-1, 1, 1), base.add(1, 1, -1), base.add(-1, 1, -1)
+        };
+        for (BlockPos pos : candidates) {
+            if (sw.getBlockState(pos).isAir()) {
+                return com.elthisboy.cryonix.util.TempLightManager.placeTemporaryLight(sw, pos, level, ttlTicks);
+            }
+        }
+        return false;
     }
 
     private boolean isImportantBlock(World world, BlockPos p) {
@@ -401,5 +541,39 @@ public class ScannerGunItem extends Item {
                 || b == Blocks.REDSTONE_BLOCK
                 || b == Blocks.NETHERITE_BLOCK
                 || b == Blocks.COPPER_BLOCK;
+    }
+
+    /** Dibuja un anillo de partículas marcando el radio de escaneo (plano horizontal). */
+    private void spawnScanPerimeterParticles(World world, BlockPos center, int radius) {
+        if (!world.isClient()) return;
+
+        // Ajusta densidad (más alto = más puntos)
+        int points = Math.max(24, radius * 10); // 10 puntos por bloque de radio aprox
+        double y = center.getY() + 0.5;         // altura del anillo
+
+        double cx = center.getX() + 0.5;
+        double cz = center.getZ() + 0.5;
+
+        for (int i = 0; i < points; i++) {
+            double t = (i / (double) points) * (Math.PI * 2.0);
+            double px = cx + Math.cos(t) * radius;
+            double pz = cz + Math.sin(t) * radius;
+
+            world.addParticle(ParticleTypes.END_ROD, px, y, pz, 0, 0.01, 0);
+        }
+
+        // (Opcional) dos anillos extra para “volumen” ligero
+        // comenta/borra si quieres ultra minimalista
+        double yUp = y + 0.8;
+        double yDn = y - 0.8;
+        int points2 = points / 2;
+        for (int i = 0; i < points2; i++) {
+            double t = (i / (double) points2) * (Math.PI * 2.0);
+            double px = cx + Math.cos(t) * radius;
+            double pz = cz + Math.sin(t) * radius;
+
+            world.addParticle(ParticleTypes.GLOW, px, yUp, pz, 0, 0, 0);
+            world.addParticle(ParticleTypes.GLOW, px, yDn, pz, 0, 0, 0);
+        }
     }
 }

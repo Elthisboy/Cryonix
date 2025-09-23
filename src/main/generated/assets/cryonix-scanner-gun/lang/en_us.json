@@ -1,4 +1,8 @@
 {
+  "hud.cryonix.scan.block.prefix": "• ",
+  "hud.cryonix.scan.empty": "No detections",
+  "hud.cryonix.scan.mob.prefix": "⚠ ",
+  "hud.cryonix.scan.title": "Cryonix Scan",
   "item.cryonix.laser_charge_lv1": "Laser Charge Lv.1",
   "item.cryonix.laser_charge_lv2": "Laser Charge Lv.2",
   "item.cryonix.laser_charge_lv3": "Laser Charge Lv.3",

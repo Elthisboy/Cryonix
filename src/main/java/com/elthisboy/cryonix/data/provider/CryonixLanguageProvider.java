@@ -45,6 +45,13 @@ public class CryonixLanguageProvider extends FabricLanguageProvider {
         translationBuilder.add("message.cryonix.scan.entity", "Entity: %s — %s m");
         translationBuilder.add("message.cryonix.scan.aoe", "Around: %s ores, %s mobs");
 
+        // HUD
+        translationBuilder.add("hud.cryonix.scan.title", "Cryonix Scan");
+        translationBuilder.add("hud.cryonix.scan.empty", "No detections");
+
+        // (opcional) prefijos si luego quieres variarlos por idioma
+        translationBuilder.add("hud.cryonix.scan.block.prefix", "\u2022 "); // •
+        translationBuilder.add("hud.cryonix.scan.mob.prefix",   "\u26A0 "); // ⚠
 
     }
 

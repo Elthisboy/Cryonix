@@ -12,61 +12,62 @@ import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
 public class ScanHudOverlay implements HudRenderCallback {
-    private static final long PANEL_LIFETIME_MS = 5000; // cuánto tiempo se muestra tras el último escaneo
-    private static final int MAX_ROWS = 6;              // líneas máximas visibles
+    private static final long PANEL_LIFETIME_MS = 5000; // tiempo visible después del último scan
+    private static final int  MAX_ROWS          = 8;
 
     @Override
     public void onHudRender(DrawContext context, RenderTickCounter tickCounter) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+        var mc = MinecraftClient.getInstance();
         if (mc.player == null) return;
 
         long age = System.currentTimeMillis() - ScanHudData.getLastUpdateMs();
         if (age > PANEL_LIFETIME_MS) return;
 
-        // Datos a mostrar
-        var blocks = ScanHudData.getBlocks();
-        var mobs   = ScanHudData.getMobs();
-
-        // Cálculo de tamaño del panel (alto dinámico según filas)
-        int rows = Math.min(MAX_ROWS, blocks.size() + mobs.size());
-        int titleH = 18;
-        int padding = 10;
-        int rowH = 10;
-        int panelW = 180; // un poco más ancho para nombres largos
-        int panelH = padding + titleH + rows * rowH + padding;
-
         Window win = mc.getWindow();
         int sw = win.getScaledWidth();
         int sh = win.getScaledHeight();
 
-        int x = sw - panelW - 8;             // margen derecho
-        int y = sh / 3;                       // un poco bajo del centro
+        int panelW = 160;
+        int panelH = 160;
+        int x = sw - panelW - 6;
+        int y = sh / 2 - panelH / 2;
 
-        // Fondo y título
+        // Fondo + título
         context.fill(x, y, x + panelW, y + panelH, 0x880A0E14);
-        context.drawText(mc.textRenderer, Text.literal("Cryonix Scan"),
-                x + 8, y + 6, 0xA0D0FF, false);
+        context.drawText(mc.textRenderer, Text.literal("Cryonix Scan"), x + 8, y + 6, 0xA0D0FF, false);
 
-        // Listas (sin energía)
-        int listX = x + 8;
-        int listY = y + padding + titleH - 2;
-        int drawn = 0;
+        // Listas
+        var blocks = ScanHudData.getBlocks();
+        var mobs   = ScanHudData.getMobs();
 
-        // Bloques primero
-        for (int i = 0; i < blocks.size() && drawn < MAX_ROWS; i++) {
+        int rowY = y + 24;
+        int rows = 0;
+
+        // Bloques/Ores primero
+        for (int i = 0; i < blocks.size() && rows < MAX_ROWS; i++) {
             var b = blocks.get(i);
-            context.drawText(mc.textRenderer,
-                    "• " + b.name + "  [" + String.format("%.1f", b.dist) + "m]",
-                    listX, listY + drawn * rowH, 0xFFD2F2FF, false);
-            drawn++;
+            if (!b.icon.isEmpty()) {
+                context.drawItem(b.icon, x + 8, rowY - 2);
+            }
+            String line = b.name + "  [" + String.format("%.1f", b.dist) + "m]";
+            context.drawText(mc.textRenderer, line, x + 8 + 20, rowY + 2, 0xFFD2F2FF, false);
+            rowY += 18; rows++;
         }
-        // Luego mobs
-        for (int i = 0; i < mobs.size() && drawn < MAX_ROWS; i++) {
+
+        // Mobs
+        for (int i = 0; i < mobs.size() && rows < MAX_ROWS; i++) {
             var m = mobs.get(i);
-            context.drawText(mc.textRenderer,
-                    "⚠ " + m.name + "  [" + String.format("%.1f", m.dist) + "m]",
-                    listX, listY + drawn * rowH, 0xFFFFA8A8, false);
-            drawn++;
+            if (!m.icon.isEmpty()) {
+                context.drawItem(m.icon, x + 8, rowY - 2);
+            }
+            String line = m.name + "  [" + String.format("%.1f", m.dist) + "m]";
+            context.drawText(mc.textRenderer, line, x + 8 + 20, rowY + 2, m.color, false);
+            rowY += 18; rows++;
+        }
+
+        // Si no hay nada, muestra aviso
+        if (rows == 0 && ScanHudData.isEmptyScan()) {
+            context.drawText(mc.textRenderer, Text.literal("No detections"), x + 8, y + 28, 0x94B4C8, false);
         }
     }
 }

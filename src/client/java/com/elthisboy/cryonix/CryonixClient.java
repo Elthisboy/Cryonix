@@ -10,9 +10,10 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 public class CryonixClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
-		com.elthisboy.cryonix.networking.CryonixClientNetworking.initClient();
-		net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT.register(
-				new com.elthisboy.cryonix.client.hud.ScanHudOverlay()
-		);
+		// Inicializa la red del cliente UNA vez
+		CryonixClientNetworking.initClient();
+
+		// Registra el overlay del HUD UNA vez
+		HudRenderCallback.EVENT.register(new ScanHudOverlay());
 	}
 }
