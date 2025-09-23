@@ -26,3 +26,11 @@ public class Cryonix implements ModInitializer {
 		return Identifier.of(MOD_ID,path);
 	}
 }
+
+//falta las traducciones para el hud
+//tratar de agregar los iconos de los mobs(cabezas) e icono del ore o del jugador
+//cuando no scanea nada que en el hud lo mencione
+//buscar la manera de cuando hay 3 menas juntas o más solo mencione menas del ore y muestre un x3
+//buscar la manera de al tirar el raycast al chocar ilumine la zona al chocar (No es necesario que sea dinamica la iluminacion)
+//que ilumine y genere particulas donde estén los ores
+//que hayan particulas donde este todo el radio de escaneo
