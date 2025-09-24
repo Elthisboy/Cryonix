@@ -341,7 +341,7 @@ public class ScannerGunItem extends Item {
      *  - Agrupa menas/mobs por nombre con "×N", guardando distancia mínima por grupo.
      *  - Spawnea partículas en ores y perímetro del AOE (cliente).
      *  - Aplica GLOW a mobs y coloca luz temporal sobre ores y cerca de mobs (servidor).
-     *  - Envía al HUD nombres, distancias e IDs para dibujar íconos.
+     *  - Envía al HUD nombres, distancias e IDs ya ORDENADOS/ALINEADOS para dibujar íconos.
      */
     private void scanSurroundings(World world, BlockPos center, PlayerEntity player, ItemStack scannerStack) {
         final int r = AOE_RADIUS;
@@ -365,12 +365,12 @@ public class ScannerGunItem extends Item {
                     if (isImportantBlock(world, p)) {
                         totalOres++;
 
-                        // Partículas en la mena (CLIENTE)
+                        // Partículas visibles en la mena (CLIENTE)
                         if (world.isClient() && budget-- > 0) {
                             Vec3d c = Vec3d.ofCenter(p);
                             world.addParticle(ParticleTypes.GLOW, c.x, c.y, c.z, 0, 0, 0);
                             world.addParticle(ParticleTypes.END_ROD, c.x, c.y + 0.1, c.z, 0, 0.01, 0);
-                            // halo
+                            // halo simple
                             for (int i = 0; i < 6; i++) {
                                 double a = (i / 6.0) * Math.PI * 2.0;
                                 world.addParticle(ParticleTypes.END_ROD,
@@ -448,28 +448,46 @@ public class ScannerGunItem extends Item {
             if (g.typeId == null) g.typeId = id;
         }
 
-        // ====== Construir listas para HUD (agrupadas y ordenadas) ======
-        java.util.List<FoundBlock> hudBlocks = new java.util.ArrayList<>();
-        java.util.List<String>    blocksId   = new java.util.ArrayList<>();
+        // ====== Construir filas y ORDENAR manteniendo ID alineado ======
+        final class BlockHudRow {
+            final String name; final double dist; final String id;
+            BlockHudRow(String name, double dist, String id) { this.name = name; this.dist = dist; this.id = id; }
+        }
+        final class MobHudRow {
+            final String name; final double dist; final String id;
+            MobHudRow(String name, double dist, String id) { this.name = name; this.dist = dist; this.id = id; }
+        }
+
+        java.util.List<BlockHudRow> blockRows = new java.util.ArrayList<>();
         for (var entry : oreGroups.entrySet()) {
             String baseName = entry.getKey();
             GroupB g = entry.getValue();
             String label = (g.count >= 2) ? (baseName + " ×" + g.count) : baseName;
-            hudBlocks.add(new FoundBlock(label, g.minDist));
-            blocksId.add(g.blockId != null ? g.blockId.toString() : "minecraft:stone");
+            String idStr = (g.blockId != null) ? g.blockId.toString() : "minecraft:stone";
+            blockRows.add(new BlockHudRow(label, g.minDist, idStr));
         }
-        hudBlocks.sort(java.util.Comparator.comparingDouble(b -> b.dist));
+        blockRows.sort(java.util.Comparator.comparingDouble(rw -> rw.dist));
 
-        java.util.List<FoundMob> hudMobs = new java.util.ArrayList<>();
-        java.util.List<String>   mobsId  = new java.util.ArrayList<>();
+        java.util.List<MobHudRow> mobRows = new java.util.ArrayList<>();
         for (var entry : mobGroups.entrySet()) {
             String baseName = entry.getKey();
             GroupM g = entry.getValue();
             String label = (g.count >= 2) ? (baseName + " ×" + g.count) : baseName;
-            hudMobs.add(new FoundMob(label, g.minDist));
-            mobsId.add(g.typeId != null ? g.typeId.toString() : "minecraft:pig");
+            String idStr = (g.typeId != null) ? g.typeId.toString() : "minecraft:pig";
+            mobRows.add(new MobHudRow(label, g.minDist, idStr));
         }
-        hudMobs.sort(java.util.Comparator.comparingDouble(m -> m.dist));
+        mobRows.sort(java.util.Comparator.comparingDouble(rw -> rw.dist));
+
+        // Ahora sí: separar en listas paralelas ALINEADAS
+        java.util.List<String> blocksN = new java.util.ArrayList<>();
+        java.util.List<Double> blocksD = new java.util.ArrayList<>();
+        java.util.List<String> blocksId = new java.util.ArrayList<>();
+        for (BlockHudRow r0 : blockRows) { blocksN.add(r0.name); blocksD.add(r0.dist); blocksId.add(r0.id); }
+
+        java.util.List<String> mobsN = new java.util.ArrayList<>();
+        java.util.List<Double> mobsD = new java.util.ArrayList<>();
+        java.util.List<String> mobsId = new java.util.ArrayList<>();
+        for (MobHudRow r1 : mobRows) { mobsN.add(r1.name); mobsD.add(r1.dist); mobsId.add(r1.id); }
 
         // ====== Mensaje resumen ======
         player.sendMessage(
@@ -481,16 +499,10 @@ public class ScannerGunItem extends Item {
 
         // ====== Enviar al HUD (SOLO SERVIDOR) ======
         if (!world.isClient() && player instanceof ServerPlayerEntity spe) {
-            java.util.List<String> blocksN = new java.util.ArrayList<>();
-            java.util.List<Double> blocksD = new java.util.ArrayList<>();
-            for (FoundBlock fb : hudBlocks) { blocksN.add(fb.name); blocksD.add(fb.dist); }
-
-            java.util.List<String> mobsN = new java.util.ArrayList<>();
-            java.util.List<Double> mobsD = new java.util.ArrayList<>();
-            for (FoundMob fm : hudMobs) { mobsN.add(fm.name); mobsD.add(fm.dist); }
-
-            int energyNow = getEnergy(scannerStack); // aunque ya no lo muestres, no molesta
-            CryonixNetworking.sendScanResults(spe, blocksN, blocksD, blocksId, mobsN, mobsD, mobsId, energyNow, MAX_ENERGY);
+            int energyNow = getEnergy(scannerStack); // aunque ya no lo muestres
+            CryonixNetworking.sendScanResults(
+                    spe, blocksN, blocksD, blocksId, mobsN, mobsD, mobsId, energyNow, MAX_ENERGY
+            );
         }
 
         // ====== Perímetro visual del radio (SOLO CLIENTE) ======
