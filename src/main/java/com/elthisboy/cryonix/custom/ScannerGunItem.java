@@ -221,13 +221,18 @@ public class ScannerGunItem extends Item {
                 living.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 20 * 5, 0, false, true));
             }
             scanSurroundings(world, e.getBlockPos(), player, stack);
+
         }
+
 
         // 4) Sonido + consumo + cooldown
         world.playSound(null, player.getBlockPos(), SoundEvents.UI_TOAST_IN, SoundCategory.PLAYERS, 1.0F, 1.0F);
         setEnergy(stack, energy - ENERGY_PER_USE);
         player.getItemCooldownManager().set(this, COOLDOWN_TICKS);
         return TypedActionResult.success(stack, world.isClient());
+
+
+
     }
 
     /* ====== Mano usada (origen del láser) ====== */
@@ -337,6 +342,13 @@ public class ScannerGunItem extends Item {
     }
 
 
+    /** Escanea alrededor del impacto: ores y mobs en un radio.
+     *  - Agrupa menas/mobs por nombre con "×N", guardando distancia mínima por grupo.
+     *  - Spawnea partículas en ores y perímetro del AOE (cliente).
+     *  - Aplica GLOW a mobs y coloca luz temporal sobre ores y cerca de mobs (servidor).
+     *  - Hace un "burst" de luz temporal en varias direcciones desde el centro.
+     *  - Envía al HUD nombres, distancias e IDs para dibujar íconos.
+     */
     /** Escanea alrededor del impacto: ores y mobs en un radio.
      *  - Agrupa menas/mobs por nombre con "×N", guardando distancia mínima por grupo.
      *  - Spawnea partículas en ores y perímetro del AOE (cliente).
@@ -514,10 +526,6 @@ public class ScannerGunItem extends Item {
 
 
 
-
-
-
-
     /** Luz cerca de la cabeza del mob: busca aire cercano y coloca Blocks.LIGHT temporal. */
     private static boolean placeLightNearEntity(net.minecraft.server.world.ServerWorld sw,
                                                 LivingEntity e, int level, int ttlTicks) {
@@ -535,6 +543,7 @@ public class ScannerGunItem extends Item {
         }
         return false;
     }
+
 
     private boolean isImportantBlock(World world, BlockPos p) {
         BlockState state = world.getBlockState(p);
