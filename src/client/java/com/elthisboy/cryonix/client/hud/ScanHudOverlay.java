@@ -17,7 +17,7 @@ public class ScanHudOverlay implements HudRenderCallback {
     private static final int  MAX_ROWS          = 7;
 
     private static final int  ROW_H      = 18;
-    private static final int  PAD        = 8;   // margen interno
+    private static final int  PAD        = 10;   // margen interno
     private static final int  ICON_W     = 16;  // tamaño icono
     private static final int  ICON_GAP   = 6;   // separación icono-texto
     private static final int  SECTION_GAP= 6;   // gap header -> lista

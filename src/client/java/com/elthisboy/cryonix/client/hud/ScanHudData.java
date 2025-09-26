@@ -99,6 +99,6 @@ public final class ScanHudData {
     public static boolean isEmptyScan() {
         return lastScanWasEmpty;
     }
-    
+
 
 }

@@ -31,6 +31,12 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.*;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 import com.elthisboy.cryonix.networking.CryonixNetworking;
 
 
@@ -58,23 +64,43 @@ public class ScannerGunItem extends Item {
 
     /* ====== Datos para construir el HUD (solo nombres/distancias) ====== */
     public static class FoundBlock {
-        public final String name; public final double dist;
-        public FoundBlock(String name, double dist) { this.name = name; this.dist = dist; }
-    }
-    public static class FoundMob {
-        public final String name; public final double dist;
-        public FoundMob(String name, double dist) { this.name = name; this.dist = dist; }
+        public final String name;
+        public final double dist;
+
+        public FoundBlock(String name, double dist) {
+            this.name = name;
+            this.dist = dist;
+        }
     }
 
-    public ScannerGunItem(Settings settings) { super(settings.maxCount(1)); }
+    public static class FoundMob {
+        public final String name;
+        public final double dist;
+
+        public FoundMob(String name, double dist) {
+            this.name = name;
+            this.dist = dist;
+        }
+    }
+
+    public ScannerGunItem(Settings settings) {
+        super(settings.maxCount(1));
+    }
 
     /* ====== Barra de energía (durability bar) ====== */
-    @Override public boolean isItemBarVisible(ItemStack stack) { return getEnergy(stack) < MAX_ENERGY; }
-    @Override public int getItemBarStep(ItemStack stack) {
+    @Override
+    public boolean isItemBarVisible(ItemStack stack) {
+        return getEnergy(stack) < MAX_ENERGY;
+    }
+
+    @Override
+    public int getItemBarStep(ItemStack stack) {
         float pct = (float) getEnergy(stack) / (float) MAX_ENERGY;
         return Math.round(pct * 13.0f);
     }
-    @Override public int getItemBarColor(ItemStack stack) {
+
+    @Override
+    public int getItemBarColor(ItemStack stack) {
         float pct = (float) getEnergy(stack) / (float) MAX_ENERGY;
         float hue = MathHelper.lerp(pct, 0.55f, 0.60f); // cian -> azul
         int rgb = java.awt.Color.HSBtoRGB(hue, 0.9f, 1.0f);
@@ -86,10 +112,14 @@ public class ScannerGunItem extends Item {
         NbtComponent comp = stack.get(DataComponentTypes.CUSTOM_DATA);
         return comp != null ? comp.copyNbt() : new NbtCompound();
     }
+
     private static void writeCustom(ItemStack stack, NbtCompound tag) {
         stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
     }
-    /** Público por si quieres leer energía desde otros lados. */
+
+    /**
+     * Público por si quieres leer energía desde otros lados.
+     */
     public int getEnergy(ItemStack stack) {
         NbtCompound tag = readCustom(stack);
         if (!tag.contains(NBT_ENERGY)) {
@@ -98,6 +128,7 @@ public class ScannerGunItem extends Item {
         }
         return tag.getInt(NBT_ENERGY);
     }
+
     private void setEnergy(ItemStack stack, int value) {
         NbtCompound tag = readCustom(stack);
         tag.putInt(NBT_ENERGY, MathHelper.clamp(value, 0, MAX_ENERGY));
@@ -135,6 +166,7 @@ public class ScannerGunItem extends Item {
         }
         return false;
     }
+
     private int findChargeSlot(PlayerEntity player, int amount) {
         for (int i = 0; i < player.getInventory().size(); i++) {
             ItemStack s = player.getInventory().getStack(i);
@@ -148,6 +180,7 @@ public class ScannerGunItem extends Item {
     public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
         ItemStack stack = player.getStackInHand(hand);
 
+        player.swingHand(hand);
         // Shift para recargar
         if (player.isSneaking()) {
             boolean reloaded = tryReloadFromInventory(player, stack);
@@ -207,7 +240,27 @@ public class ScannerGunItem extends Item {
             player.sendMessage(Text.translatable("message.cryonix.scan.block",
                     state.getBlock().getName(), String.format("%.1f", dist)), true);
 
-            if (world.isClient()) spawnBlockOutlineParticles(world, pos);
+            // === XRAY (common->client bridge por reflexión) ===
+            if (world.isClient) {
+                int range = getRangeFromGun(stack);
+                java.util.Set<net.minecraft.util.Identifier> recognized = computeRecognizedFromGun(stack);
+                int durationTicks = getScanDurationTicks(stack);
+
+                try {
+                    Class<?> bridge = Class.forName("com.elthisboy.cryonix.client.ClientScanBridge");
+                    java.lang.reflect.Method m = bridge.getMethod(
+                            "startScanAt",
+                            net.minecraft.util.math.BlockPos.class,
+                            int.class,
+                            java.util.Set.class,
+                            int.class // <--- nuevo parámetro
+                    );
+                    m.invoke(null, pos, range, recognized, durationTicks);
+                } catch (Throwable t) {
+                    // log opcional
+                }
+            }
+
             scanSurroundings(world, pos, player, stack);
 
         } else if (finalHit.getType() == HitResult.Type.ENTITY) {
@@ -220,8 +273,28 @@ public class ScannerGunItem extends Item {
             if (!world.isClient() && e instanceof LivingEntity living) {
                 living.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 20 * 5, 0, false, true));
             }
-            scanSurroundings(world, e.getBlockPos(), player, stack);
 
+            // === XRAY (common->client bridge por reflexión) ===
+            if (world.isClient) {
+                int range = getRangeFromGun(stack);
+                java.util.Set<net.minecraft.util.Identifier> recognized = computeRecognizedFromGun(stack);
+                try {
+                    Class<?> bridge = Class.forName("com.elthisboy.cryonix.client.ClientScanBridge");
+                    java.lang.reflect.Method m = bridge.getMethod(
+                            "startScanAt",
+                            net.minecraft.util.math.BlockPos.class,
+                            int.class,
+                            java.util.Set.class
+                    );
+                    m.invoke(null, e.getBlockPos(), range, recognized);
+                } catch (Throwable t) {
+                    // opcional: log interno
+                    // t.printStackTrace();
+                }
+            }
+            // === /XRAY ===
+
+            scanSurroundings(world, e.getBlockPos(), player, stack);
         }
 
 
@@ -232,9 +305,19 @@ public class ScannerGunItem extends Item {
         return TypedActionResult.success(stack, world.isClient());
 
 
-
     }
 
+    /** Rango de escaneo tomado de la pistola (ajusta a tu NBT o constante RANGE). */
+    private int getRangeFromGun(ItemStack stack) {
+
+        return AOE_RADIUS;
+    }
+
+    /** Bloques que ESTA pistola reconoce en ESTE disparo (define tus "modos" aquí). */
+    private java.util.Set<net.minecraft.util.Identifier> computeRecognizedFromGun(ItemStack stack) {
+        // 🔹 devolvemos null o vacío, el cliente lo resolverá usando XrayState
+        return java.util.Collections.emptySet();
+    }
     /* ====== Mano usada (origen del láser) ====== */
     private Vec3d getHandPos(PlayerEntity player, float tickDelta, Hand usedHand) {
         Vec3d eye = player.getCameraPosVec(tickDelta);
@@ -597,4 +680,12 @@ public class ScannerGunItem extends Item {
             world.addParticle(ParticleTypes.GLOW, px, yDn, pz, 0, 0, 0);
         }
     }
+    private int getScanDurationTicks(ItemStack stack) {
+        // Usa el “tiempo del scanner gun” que quieras como referencia.
+        // Sugerencia: igual al glow de mobs (3 s = 60 ticks), o el que uses en tu HUD.
+        return AOE_GLOW_TICKS; // ahora mismo 20*3 = 60
+    }
+
+
+
 }
