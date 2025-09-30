@@ -31,8 +31,3 @@ public class Cryonix implements ModInitializer {
 }
 
 
-//AGREGAR EN EL SCANER BLOQUES DE INTERES COMO SPAWNERS
-//QUE LA LUZ SE VEA EN TODOS LOS SENTIDOS, NO SOLO ARRIBA!
-
-
-//TRATAR de ver si se puede hacer la misma logica del xray con los ores, pero con los mobs... para evitar usar glow y todos lo vean

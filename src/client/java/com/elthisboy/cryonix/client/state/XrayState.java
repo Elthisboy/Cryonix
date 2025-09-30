@@ -46,12 +46,17 @@ public class XrayState {
         Target t = TARGETS.get(id); return t!=null ? t.color : fb;
     }
 
-    public static final Path CONFIG = Path.of("config","cryonix_xray.json");
+    public static final Path CONFIG = Path.of("config", "cryonix", "block_xray.json");
 
     public static void loadTargetsFromConfig(){
         try{
             if (!Files.exists(CONFIG)){
                 TARGETS.clear();
+
+                //SPAWNERS
+                addDefault("minecraft:trial_spawner",    new RGBA(255,128,0,200));
+                addDefault("minecraft:spawner",          new RGBA(255,128,0,200));
+
                 //COAL
                 addDefault("minecraft:coal_ore",             new RGBA(30,30,30,180));
                 addDefault("minecraft:deepslate_coal_ore",   new RGBA(30,30,30,180));

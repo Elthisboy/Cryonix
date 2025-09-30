@@ -15,6 +15,7 @@ import java.util.OptionalDouble;
 public class CryonixRenderLayers {
 
     public static final RenderLayer XRAY_LINES;
+    public static final RenderLayer XRAY_QUADS;
 
     static {
         MultiPhaseParameters params = MultiPhaseParameters.builder()
@@ -36,9 +37,27 @@ public class CryonixRenderLayers {
                 false,
                 params
         );
+
+        MultiPhaseParameters paramsFill = MultiPhaseParameters.builder()
+                .program(RenderPhase.TRANSLUCENT_PROGRAM)
+                .layering(RenderPhase.VIEW_OFFSET_Z_LAYERING)
+                .transparency(RenderPhase.TRANSLUCENT_TRANSPARENCY)
+                .depthTest(RenderPhase.ALWAYS_DEPTH_TEST)
+                .writeMaskState(RenderPhase.COLOR_MASK)
+                .cull(RenderPhase.DISABLE_CULLING)
+                .build(false);
+
+        XRAY_QUADS = RenderLayer.of(
+                "cryonix_xray_quads",
+                VertexFormats.POSITION_COLOR,
+                VertexFormat.DrawMode.QUADS,
+                256, false, false, paramsFill
+        );
+
     }
 
-    /** Forzar la inicialización estática (opcional). Llama en tu init cliente si quieres. */
+
+
     public static void init() {
         RenderSystem.assertOnRenderThread();
     }

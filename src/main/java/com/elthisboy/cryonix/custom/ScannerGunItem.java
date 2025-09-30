@@ -270,9 +270,8 @@ public class ScannerGunItem extends Item {
             player.sendMessage(Text.translatable("message.cryonix.scan.entity",
                     e.getDisplayName(), String.format("%.1f", dist)), true);
 
-            if (!world.isClient() && e instanceof LivingEntity living) {
-                living.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 20 * 5, 0, false, true));
-            }
+            // Glow removido: ya no aplica efecto al mob
+
 
             // === XRAY (common->client bridge por reflexión) ===
             if (world.isClient) {
@@ -292,7 +291,23 @@ public class ScannerGunItem extends Item {
                     // t.printStackTrace();
                 }
             }
-            // === /XRAY ===
+            // +++ X-Ray de mobs (CLIENTE)
+            if (world.isClient) {
+                int range = getRangeFromGun(stack);
+                int durationTicks = getScanDurationTicks(stack);
+
+                // X-Ray de MOBS (LLAMADA A start)
+                try {
+                    Class<?> mob = Class.forName("com.elthisboy.cryonix.client.fx.ClientMobXray");
+                    java.lang.reflect.Method mm = mob.getMethod(
+                            "start",
+                            net.minecraft.util.math.BlockPos.class,
+                            int.class,
+                            int.class
+                    );
+                    mm.invoke(null, e.getBlockPos(), range, durationTicks); // 👈 AQUI SE LLAMA start(...)
+                } catch (Throwable ignored) {}
+            }
 
             scanSurroundings(world, e.getBlockPos(), player, stack);
         }
@@ -425,19 +440,6 @@ public class ScannerGunItem extends Item {
     }
 
 
-    /** Escanea alrededor del impacto: ores y mobs en un radio.
-     *  - Agrupa menas/mobs por nombre con "×N", guardando distancia mínima por grupo.
-     *  - Spawnea partículas en ores y perímetro del AOE (cliente).
-     *  - Aplica GLOW a mobs y coloca luz temporal sobre ores y cerca de mobs (servidor).
-     *  - Hace un "burst" de luz temporal en varias direcciones desde el centro.
-     *  - Envía al HUD nombres, distancias e IDs para dibujar íconos.
-     */
-    /** Escanea alrededor del impacto: ores y mobs en un radio.
-     *  - Agrupa menas/mobs por nombre con "×N", guardando distancia mínima por grupo.
-     *  - Spawnea partículas en ores y perímetro del AOE (cliente).
-     *  - Aplica GLOW a mobs y coloca luz temporal sobre ores y cerca de mobs (servidor).
-     *  - Envía al HUD nombres, distancias e IDs ya ORDENADOS/ALINEADOS para dibujar íconos.
-     */
     private void scanSurroundings(World world, BlockPos center, PlayerEntity player, ItemStack scannerStack) {
         final int r = AOE_RADIUS;
         int budget = AOE_MAX_POINTS;
@@ -465,7 +467,6 @@ public class ScannerGunItem extends Item {
                             Vec3d c = Vec3d.ofCenter(p);
                             world.addParticle(ParticleTypes.GLOW, c.x, c.y, c.z, 0, 0, 0);
                             world.addParticle(ParticleTypes.END_ROD, c.x, c.y + 0.1, c.z, 0, 0.01, 0);
-                            // halo simple
                             for (int i = 0; i < 6; i++) {
                                 double a = (i / 6.0) * Math.PI * 2.0;
                                 world.addParticle(ParticleTypes.END_ROD,
@@ -474,10 +475,10 @@ public class ScannerGunItem extends Item {
                             }
                         }
 
-                        // Luz temporal encima (SERVIDOR)
+                        // **LUZ OMNI EN TODOS LOS SENTIDOS (SERVIDOR)**
                         if (!world.isClient() && world instanceof net.minecraft.server.world.ServerWorld sw) {
-                            BlockPos above = p.up();
-                            com.elthisboy.cryonix.util.TempLightManager.placeTemporaryLight(sw, above, 12, 20 * 5);
+                            // core 12, rayos 6, sprinkle 2, ttl 60 ticks (3s aprox)
+                            com.elthisboy.cryonix.util.TempLightManager.illuminateOmni(sw, p, 12, 6, 2, 60);
                         }
 
                         // Agrupación + ID de bloque
@@ -513,10 +514,7 @@ public class ScannerGunItem extends Item {
         );
 
         if (!world.isClient()) {
-            // Glow a mobs + luz cerca de la cabeza (SERVIDOR)
-            for (LivingEntity living : entities) {
-                living.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, AOE_GLOW_TICKS, 0, false, true));
-            }
+            // Solo luz cerca de la cabeza (sin glow)
             if (world instanceof net.minecraft.server.world.ServerWorld sw) {
                 for (LivingEntity living : entities) {
                     placeLightNearEntity(sw, living, 12, 20 * 5);
@@ -594,7 +592,7 @@ public class ScannerGunItem extends Item {
 
         // ====== Enviar al HUD (SOLO SERVIDOR) ======
         if (!world.isClient() && player instanceof ServerPlayerEntity spe) {
-            int energyNow = getEnergy(scannerStack); // aunque ya no lo muestres
+            int energyNow = getEnergy(scannerStack);
             CryonixNetworking.sendScanResults(
                     spe, blocksN, blocksD, blocksId, mobsN, mobsD, mobsId, energyNow, MAX_ENERGY
             );
@@ -631,9 +629,14 @@ public class ScannerGunItem extends Item {
     private boolean isImportantBlock(World world, BlockPos p) {
         BlockState state = world.getBlockState(p);
         if (state.isAir()) return false;
-        if (state.isIn(ALL_ORES)) return true; // todos los ores (incluye mods que usen c:ores)
 
-        // (Opcional) bloques compactados
+        // 🔹 Spawners siempre visibles en el overlay
+        if (state.isOf(Blocks.SPAWNER) || state.isOf(Blocks.TRIAL_SPAWNER)) return true;
+
+        // 🔹 Todos los ores (incluye mods que usen c:ores)
+        if (state.isIn(ALL_ORES)) return true;
+
+        // 🔹 (Opcional) bloques compactados “valiosos”
         Block b = state.getBlock();
         return b == Blocks.RAW_COPPER_BLOCK
                 || b == Blocks.COAL_BLOCK

@@ -1,5 +1,6 @@
 package com.elthisboy.cryonix;
 
+import com.elthisboy.cryonix.client.fx.ClientMobXray;
 import com.elthisboy.cryonix.client.fx.CryonixRenderLayers;
 import com.elthisboy.cryonix.client.fx.XrayOverlayRenderer;
 import com.elthisboy.cryonix.client.scan.XrayScanner;
@@ -20,9 +21,12 @@ public class CryonixClient implements ClientModInitializer {
 
 		// Cargar o generar el config al iniciar el cliente
 		com.elthisboy.cryonix.client.state.XrayState.loadTargetsFromConfig();
+		com.elthisboy.cryonix.client.state.MobXrayState.loadTargetsFromConfig();
 
 		// Registra el overlay del HUD UNA vez
 		HudRenderCallback.EVENT.register(new ScanHudOverlay());
+
+		ClientMobXray.init();
 
 		CryonixRenderLayers.init();
 
