@@ -8,8 +8,6 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -31,19 +29,9 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.*;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Hand;
-import net.minecraft.util.TypedActionResult;
-import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
-import com.elthisboy.cryonix.networking.CryonixNetworking;
 
-
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+
 
 public class ScannerGunItem extends Item {
     /* ====== Config ====== */
@@ -120,9 +108,6 @@ public class ScannerGunItem extends Item {
         stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
     }
 
-    /**
-     * Público por si quieres leer energía desde otros lados.
-     */
     public int getEnergy(ItemStack stack) {
         NbtCompound tag = readCustom(stack);
         if (!tag.contains(NBT_ENERGY)) {
@@ -325,13 +310,11 @@ public class ScannerGunItem extends Item {
 
     }
 
-    /** Rango de escaneo tomado de la pistola (ajusta a tu NBT o constante RANGE). */
     private int getRangeFromGun(ItemStack stack) {
 
         return AOE_RADIUS;
     }
 
-    /** Bloques que ESTA pistola reconoce en ESTE disparo (define tus "modos" aquí). */
     private java.util.Set<net.minecraft.util.Identifier> computeRecognizedFromGun(ItemStack stack) {
         // 🔹 devolvemos null o vacío, el cliente lo resolverá usando XrayState
         return java.util.Collections.emptySet();
@@ -610,7 +593,6 @@ public class ScannerGunItem extends Item {
 
 
 
-    /** Luz cerca de la cabeza del mob: busca aire cercano y coloca Blocks.LIGHT temporal. */
     private static boolean placeLightNearEntity(net.minecraft.server.world.ServerWorld sw,
                                                 LivingEntity e, int level, int ttlTicks) {
         BlockPos base = BlockPos.ofFloored(e.getX(), e.getY() + e.getStandingEyeHeight(), e.getZ());
@@ -656,7 +638,6 @@ public class ScannerGunItem extends Item {
                 || b == Blocks.COPPER_BLOCK;
     }
 
-    /** Dibuja un anillo de partículas marcando el radio de escaneo (plano horizontal). */
     private void spawnScanPerimeterParticles(World world, BlockPos center, int radius) {
         if (!world.isClient()) return;
 
@@ -675,8 +656,6 @@ public class ScannerGunItem extends Item {
             world.addParticle(ParticleTypes.END_ROD, px, y, pz, 0, 0.01, 0);
         }
 
-        // (Opcional) dos anillos extra para “volumen” ligero
-        // comenta/borra si quieres ultra minimalista
         double yUp = y + 0.8;
         double yDn = y - 0.8;
         int points2 = points / 2;
@@ -690,9 +669,8 @@ public class ScannerGunItem extends Item {
         }
     }
     private int getScanDurationTicks(ItemStack stack) {
-        // Usa el “tiempo del scanner gun” que quieras como referencia.
-        // Sugerencia: igual al glow de mobs (3 s = 60 ticks), o el que uses en tu HUD.
-        return AOE_GLOW_TICKS; // ahora mismo 20*3 = 60
+
+        return AOE_GLOW_TICKS;
     }
 
 

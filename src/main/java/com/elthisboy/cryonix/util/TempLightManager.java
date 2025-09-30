@@ -19,7 +19,6 @@ public final class TempLightManager {
         LightEntry(BlockPos pos, int ticksLeft) { this.pos = pos; this.ticksLeft = ticksLeft; }
     }
 
-    // Por mundo (dimension) guardamos un map de posiciones iluminadas
     private static final Map<ServerWorld, Map<BlockPos, LightEntry>> LIGHTS = new ConcurrentHashMap<>();
     private static boolean registered = false;
 

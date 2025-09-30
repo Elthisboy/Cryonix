@@ -48,8 +48,8 @@ public class ScanHudOverlay implements HudRenderCallback {
         boolean showNothing = (rowsBlocks + rowsMobs) == 0 && ScanHudData.isEmptyScan();
 
         // calcular ancho según texto más largo
-        int textStartXOffset = ICON_W + ICON_GAP; // icono + gap
-        int maxTextW = tr.getWidth(title);        // incluir también el título (para no recortar efectos)
+        int textStartXOffset = ICON_W + ICON_GAP;
+        int maxTextW = tr.getWidth(title);
         for (int i = 0; i < rowsBlocks; i++) {
             var b = ScanHudData.getBlocks().get(i);
             String line = "• " + b.name + "  [" + String.format("%.1f", b.dist) + "m]";
@@ -124,7 +124,13 @@ public class ScanHudOverlay implements HudRenderCallback {
 
         // Nada encontrado
         if (showNothing) {
-            context.drawText(tr, "Nothing found", listX, listY + 2, 0x9EC3FF, false);
-        }
+            context.drawText(
+                    mc.textRenderer,
+                    net.minecraft.text.Text.translatable("hud.cryonix.nothing.found"),
+                    listX,
+                    listY + 2,
+                    0x9EC3FF,
+                    true
+            );        }
     }
 }

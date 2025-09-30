@@ -17,14 +17,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-/**
- * Config de X-Ray para MOBS (por cliente):
- * - enabled (on/off)
- * - range (sincronizable externamente si quieres)
- * - lista de entidades con color RGBA y enabled
- *
- * Archivo: config/cryonix_mobxray.json
- */
 public final class MobXrayState {
 
     private MobXrayState() {}

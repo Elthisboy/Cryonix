@@ -68,12 +68,6 @@ public final class ScanHudData {
         lastUpdateMs = System.currentTimeMillis();
         lastScanWasEmpty = nothingFound;
 
-        Cryonix.LOGGER.info(
-                "[SCAN:HUD] update blocks={}, mobs={}, empty={}",
-                blocks != null ? blocks.size() : 0,
-                mobs != null ? mobs.size() : 0,
-                nothingFound
-        );
     }
 
     public static synchronized void clear() {
@@ -95,7 +89,6 @@ public final class ScanHudData {
         return lastUpdateMs;
     }
 
-    /** Verdadero si el último escaneo no encontró nada (sirve para pintar el mensaje “No detections”). */
     public static boolean isEmptyScan() {
         return lastScanWasEmpty;
     }

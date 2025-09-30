@@ -17,24 +17,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Registro de tipos de payload y utilidades de networking (lado común/servidor).
- */
 public final class CryonixNetworking {
 
     private CryonixNetworking() {}
 
-    // --- Guardia para evitar doble registro ---
     private static final AtomicBoolean REGISTERED = new AtomicBoolean(false);
 
-    /** Llamar una sola vez: ya maneja idempotencia. */
     public static void registerPayloadTypesOnce() {
         if (!REGISTERED.compareAndSet(false, true)) {
-            // Ya estaba registrado; no hacer nada.
             return;
         }
         PayloadTypeRegistry.playS2C().register(ScanResultsPayload.ID, ScanResultsPayload.CODEC);
-        Cryonix.LOGGER.info("[Networking] Payloads registrados (S2C): {}", ScanResultsPayload.ID.id());
     }
 
     public static void sendScanResults(ServerPlayerEntity player,
@@ -65,16 +58,8 @@ public final class CryonixNetworking {
 
         ServerPlayNetworking.send(player, payload);
 
-        Cryonix.LOGGER.info("[SCAN:SEND] -> {} blocks={} mobs={} orePos={} (center={}, r={}, cap={})",
-                player.getName().getString(),
-                blocksN == null ? 0 : blocksN.size(),
-                mobsN   == null ? 0 : mobsN.size(),
-                orePacked.size(),
-                (scanCenter == null ? "playerPos" : scanCenter.toShortString()),
-                radius, limit);
     }
 
-    // Mantén tus overloads; ahora delegan con radius por defecto
     public static void sendScanResults(ServerPlayerEntity player,
                                        int energy, int max,
                                        List<String> blocksN, List<Double> blocksD, List<String> blocksId,

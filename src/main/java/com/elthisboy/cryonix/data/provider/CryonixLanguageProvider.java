@@ -48,6 +48,8 @@ public class CryonixLanguageProvider extends FabricLanguageProvider {
         // HUD
         translationBuilder.add("hud.cryonix.scan.title", "Cryonix Scan");
         translationBuilder.add("hud.cryonix.scan.empty", "No detections");
+        translationBuilder.add("hud.cryonix.nothing.found", "Nothing found");
+
 
         // (opcional) prefijos si luego quieres variarlos por idioma
         translationBuilder.add("hud.cryonix.scan.block.prefix", "\u2022 "); // •

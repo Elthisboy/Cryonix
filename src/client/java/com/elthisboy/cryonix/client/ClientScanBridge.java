@@ -20,9 +20,6 @@ public final class ClientScanBridge {
         XrayState.setRange(range);
         CryonixScanController.startScan(mc, center, range, recognized, durationTicks);
 
-
-
-        // si tienes la sobrecarga sin duración:
         try {
             com.elthisboy.cryonix.client.fx.ClientMobXray.start(center, range, 60);
         } catch (Throwable t) {

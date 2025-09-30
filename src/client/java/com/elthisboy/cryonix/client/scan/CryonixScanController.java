@@ -17,7 +17,7 @@ public class CryonixScanController {
     static final Deque<BlockPos> work = new ArrayDeque<>();
     private static Set<Identifier> recognized = Set.of();
 
-    // AHORA variables por sesión:
+    //variables por sesión:
     public static int POSITIONS_PER_TICK = 600; // valor por defecto, se recalcula al iniciar
     private static long SESSION_TTL_MS = 4000;   // se recalcula al iniciar
 
@@ -37,7 +37,6 @@ public class CryonixScanController {
         currentSession = COUNTER.getAndIncrement();
         active = true;
 
-        // === usar "todos los ores" si la pistola no envió lista ===
         if (recognizedSet == null || recognizedSet.isEmpty()) {
             recognized = com.elthisboy.cryonix.client.state.XrayState.targetIds();
         } else {
@@ -47,7 +46,6 @@ public class CryonixScanController {
         XrayCache.invalidateAll();
         work.clear();
 
-        // Cola por "capas" (de dentro hacia afuera) con esfera real
         for (int d = 0; d <= range; d++) {
             for (int dx = -d; dx <= d; dx++) {
                 for (int dy = -d; dy <= d; dy++) {
@@ -63,19 +61,16 @@ public class CryonixScanController {
             }
         }
 
-        // === Ajuste automático según "tiempo del scanner gun" ===
         int ticks = Math.max(1, durationTicks);          // nunca 0
         SESSION_TTL_MS = ticks * 50L;                    // TTL visible = duración del escaneo
         int size = Math.max(1, work.size());
         POSITIONS_PER_TICK = Math.max(200, (int)Math.ceil(size / (double)ticks));
-        // === /ajuste ===
     }
 
     static boolean accepts(Identifier id){ return recognized.contains(id); }
     static void doneIfEmpty(){
         if (work.isEmpty()) {
             active = false;
-            // no limpiamos cache; se borrará solo por TTL
         }
     }
 }

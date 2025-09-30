@@ -72,7 +72,7 @@ public class XrayState {
         Identifier id = Registries.BLOCK.getId(st.getBlock());
         Target t = TARGETS.get(id);
         if (t != null) return t.on;
-        return isOre(st); // si no está en JSON pero es ore → sí se muestra
+        return isOre(st);
     }
 
     public static RGBA colorFor(BlockState st, RGBA fb){

@@ -49,11 +49,6 @@ public final class CryonixClientNetworking {
                 ScanResultsPayload.ID,
                 (ScanResultsPayload payload, ClientPlayNetworking.Context ctx) -> {
                     ctx.client().execute(() -> {
-                        Cryonix.LOGGER.info(
-                                "[SCAN:CLIENT] Received payload blocks={}, mobs={}",
-                                payload.blocksN().size(),
-                                payload.mobsN().size()
-                        );
                         handleScanResults(payload);
                     });
                 }
@@ -62,7 +57,6 @@ public final class CryonixClientNetworking {
         // Limpia el HUD al desconectar para que no quede “pegado”
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             ScanHudData.clear();
-            Cryonix.LOGGER.info("[SCAN:CLIENT] Cleared HUD on disconnect");
         });
     }
 
