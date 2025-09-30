@@ -5,7 +5,11 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.Identifier;
 
 import java.io.FileOutputStream;
@@ -29,22 +33,63 @@ public class XrayState {
     public static int range(){ return range; }
     public static void setRange(int r){ range = Math.max(8, Math.min(256, r)); }
 
+    private static RGBA DEFAULT_ORE_COLOR = new RGBA(140, 255, 220, 160);
+    public static RGBA getDefaultOreColor(){ return DEFAULT_ORE_COLOR; }
+    public static void setDefaultOreColor(RGBA c){ DEFAULT_ORE_COLOR = c; }
+
+    private static final TagKey<net.minecraft.block.Block> C_ORES     =
+            TagKey.of(RegistryKeys.BLOCK, Identifier.of("c", "ores"));
+    private static final TagKey<Block> FORGE_ORES =
+            TagKey.of(RegistryKeys.BLOCK, Identifier.of("forge", "ores"));
+
+    public static boolean isOre(BlockState st){
+        if (st == null) return false;
+        if (st.isIn(C_ORES) || st.isIn(FORGE_ORES)) return true;
+        Identifier id = Registries.BLOCK.getId(st.getBlock());
+        String p = id.getPath();
+        return p.contains("ore") || p.contains("debris");
+    }
+
     public static class Target {
         public final Identifier id; public final RGBA color; public final boolean on;
         public Target(Identifier id, RGBA c, boolean on){ this.id=id; this.color=c; this.on=on; }
     }
+
+
     private static final Map<Identifier,Target> TARGETS = new HashMap<>();
+
     public static Set<Identifier> targetIds(){
         HashSet<Identifier> s = new HashSet<>();
         for (Target t: TARGETS.values()) if (t.on) s.add(t.id);
         return s;
     }
+
     public static boolean isWanted(Identifier id){
         Target t = TARGETS.get(id); return t!=null && t.on;
     }
+
+    public static boolean matches(BlockState st){
+        Identifier id = Registries.BLOCK.getId(st.getBlock());
+        Target t = TARGETS.get(id);
+        if (t != null) return t.on;
+        return isOre(st); // si no está en JSON pero es ore → sí se muestra
+    }
+
+    public static RGBA colorFor(BlockState st, RGBA fb){
+        Identifier id = Registries.BLOCK.getId(st.getBlock());
+        Target t = TARGETS.get(id);
+        if (t != null) return t.color;
+        return isOre(st) ? DEFAULT_ORE_COLOR : fb;
+    }
+
     public static RGBA colorFor(Identifier id, RGBA fb){
         Target t = TARGETS.get(id); return t!=null ? t.color : fb;
     }
+
+
+
+
+
 
     public static final Path CONFIG = Path.of("config", "cryonix", "block_xray.json");
 

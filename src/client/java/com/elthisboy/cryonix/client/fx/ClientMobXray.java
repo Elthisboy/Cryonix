@@ -77,14 +77,12 @@ public final class ClientMobXray {
         if (now >= nextRefreshTick) { nextRefreshTick = now + 4; refreshCache(); }
 
         renderOutlines(ctx);
-
-        System.out.println("[MobXray] onWorldRender: center="+center+" cache="+CACHE.size());
     }
 
     private static void refreshCache() {
         CACHE.clear();
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null) return;
+        if (mc.world == null || center == null) return;
 
         Box area = new Box(center).expand(range);
         List<LivingEntity> list = mc.world.getEntitiesByClass(
@@ -92,13 +90,16 @@ public final class ClientMobXray {
                 ent -> ent.isAlive() && !ent.isSpectator() && ent != mc.player
         );
 
-        CACHE.addAll(list);
+        for (LivingEntity ent : list) {
+            Identifier id = Registries.ENTITY_TYPE.getId(ent.getType());
+            if (id == null) continue;
 
-         Set<Identifier> targets = MobXrayState.targetIds();
-         if (targets.isEmpty()) { for (LivingEntity ent : list) if (ent instanceof Monster) CACHE.add(ent); return; }
-         for (LivingEntity ent : list) { Identifier id = Registries.ENTITY_TYPE.getId(ent.getType()); if (id != null && MobXrayState.isWanted(id)) CACHE.add(ent); }
+            // ✅ Si está en targets y ON -> true; si no está, decide con renderUnknown
+            if (MobXrayState.shouldRender(id)) {
+                CACHE.add(ent);
+            }
+        }
     }
-
     private static void renderOutlines(WorldRenderContext ctx) {
         if (CACHE.isEmpty()) return;
 
@@ -110,40 +111,33 @@ public final class ClientMobXray {
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
 
-        // ✅ provider propio
         VertexConsumerProvider.Immediate immediate = LOCAL_BUFFERS.getEntityVertexConsumers();
-        VertexConsumer vc = immediate.getBuffer(CryonixRenderLayers.XRAY_LINES); // o RenderLayer.getLines()
+        VertexConsumer vc = immediate.getBuffer(CryonixRenderLayers.XRAY_LINES);
 
         for (LivingEntity e : CACHE) {
             if (e == null || !e.isAlive()) continue;
 
-            Identifier typeId = Registries.ENTITY_TYPE.getId(e.getType());
             Identifier id = Registries.ENTITY_TYPE.getId(e.getType());
+            if (id == null) continue;
 
-            // si no está en la lista: el helper decide con renderUnknown
+            // ✅ Un solo punto de verdad
             if (!MobXrayState.shouldRender(id)) continue;
 
-                // color configurado o, si falta, el defaultColor
-            RGBA col = MobXrayState.colorForOrDefault(id);
-            // Si la entidad no está habilitada en la config, no la dibujes
-            if (!MobXrayState.isWanted(typeId)) continue;
-
-            // Toma el color desde la config (con un fallback por si acaso)
-            RGBA c = MobXrayState.colorFor(typeId, new RGBA(255, 255, 255, 220));
+            // ✅ Color: config o default (para mobs de mods no listados)
+            RGBA c = MobXrayState.colorForOrDefault(id);
             float r = c.r / 255f, g = c.g / 255f, b = c.b / 255f, a = c.a / 255f;
 
-            // ... calcula la caja en coords de cámara
             Box box = e.getBoundingBox();
             double x1 = box.minX - cam.x, y1 = box.minY - cam.y, z1 = box.minZ - cam.z;
             double x2 = box.maxX - cam.x, y2 = box.maxY - cam.y, z2 = box.maxZ - cam.z;
 
-            // si dibujas relleno:
-            WorldRenderer.renderFilledBox(matrices, vc, x1,y1,z1, x2,y2,z2, r,g,b,a);
+            // Relleno (opcional)
+            WorldRenderer.renderFilledBox(matrices, vc, x1,y1,z1, x2,y2,z2, r,g,b, a * 0.25f);
 
-            // si dibujas líneas (borde):
-            WorldRenderer.drawBox(matrices, vc, x1,y1,z1, x2,y2,z2, r,g,b,a);
+            // Contorno
+            WorldRenderer.drawBox(matrices, vc, x1,y1,z1, x2,y2,z2, r,g,b, a);
         }
-        // 🔁 obligatorio en Immediate, si no, el BufferBuilder queda “not building”
+
         immediate.draw();
 
         RenderSystem.enableCull();

@@ -14,7 +14,7 @@ import java.util.ArrayList;
 
 public record ScanResultsPayload(
         int energy, int max,
-        // NUEVO: centro y radio del escaneo
+        //centro y radio del escaneo
         long scanCenter, int scanRadius,
         // HUD: bloques
         List<String> blocksN, List<Double> blocksD, List<String> blocksId,
@@ -32,8 +32,8 @@ public record ScanResultsPayload(
         public ScanResultsPayload decode(RegistryByteBuf buf) {
             int energy = buf.readVarInt();
             int max    = buf.readVarInt();
-            long center= buf.readLong();               // <—
-            int radius = buf.readVarInt();             // <—
+            long center= buf.readLong();
+            int radius = buf.readVarInt();
 
             List<String> blocksN  = readStringList(buf);
             List<Double> blocksD  = readDoubleList(buf);
@@ -52,8 +52,8 @@ public record ScanResultsPayload(
         public void encode(RegistryByteBuf buf, ScanResultsPayload v) {
             buf.writeVarInt(v.energy());
             buf.writeVarInt(v.max());
-            buf.writeLong(v.scanCenter());            // <—
-            buf.writeVarInt(v.scanRadius());          // <—
+            buf.writeLong(v.scanCenter());
+            buf.writeVarInt(v.scanRadius());
 
             writeStringList(buf, v.blocksN());
             writeDoubleList(buf, v.blocksD());

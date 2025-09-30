@@ -23,21 +23,22 @@ public final class XrayScanner {
             BlockPos p = CryonixScanController.work.pollFirst();
             if (p == null) break;
 
-            // Si esto te filtra demasiado, coméntalo para pruebas:
             if (!mc.world.isChunkLoaded(p)) continue;
 
-            BlockState state = mc.world.getBlockState(p);
+            var state = mc.world.getBlockState(p);
             if (state.isAir()) continue;
 
-            Identifier id = Registries.BLOCK.getId(state.getBlock());
-            if (!CryonixScanController.accepts(id)) continue;
+            boolean accepted =
+                    XrayState.matches(state)
+                            || CryonixScanController.accepts(Registries.BLOCK.getId(state.getBlock()));
 
-            // Color desde config o fallback
-            RGBA color = XrayState.colorFor(id, new RGBA(255, 255, 0, 200));
+            if (!accepted) continue;
+
+            RGBA color = XrayState.colorFor(state, XrayState.getDefaultOreColor());
+
             XrayCache.put(new BlockMark(p, color, CryonixScanController.ttlMs(), session));
         }
 
-        // Si ya no quedan posiciones, la sesión deja de estar activa (las marcas persisten hasta su TTL)
         CryonixScanController.doneIfEmpty();
     }
 

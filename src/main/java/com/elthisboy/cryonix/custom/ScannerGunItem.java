@@ -48,7 +48,7 @@ import java.util.Map;
 public class ScannerGunItem extends Item {
     /* ====== Config ====== */
     private static final String NBT_ENERGY = "ScannerEnergy";
-    private static final int MAX_ENERGY = 300;
+    private static final int MAX_ENERGY = 500;
     private static final int ENERGY_PER_USE = 5;
     private static final double RANGE = 50.0;
     private static final int COOLDOWN_TICKS = 10;
@@ -61,6 +61,9 @@ public class ScannerGunItem extends Item {
     // Tag de "todos los ores" (common tags: c:ores)
     private static final TagKey<Block> ALL_ORES =
             TagKey.of(RegistryKeys.BLOCK, Identifier.of("c", "ores"));
+    private static final TagKey<Block> FORGE_ORES =
+            TagKey.of(RegistryKeys.BLOCK,  Identifier.of("forge","ores"));
+
 
     /* ====== Datos para construir el HUD (solo nombres/distancias) ====== */
     public static class FoundBlock {
@@ -139,7 +142,7 @@ public class ScannerGunItem extends Item {
     private boolean tryReloadFromInventory(PlayerEntity player, ItemStack scanner) {
         int current = getEnergy(scanner);
         if (current >= MAX_ENERGY) return false;
-        int[] prios = {200, 100, 50};
+        int[] prios = {100, 50, 15};
         for (int want : prios) {
             int slot = findChargeSlot(player, want);
             if (slot != -1) {
@@ -635,6 +638,9 @@ public class ScannerGunItem extends Item {
 
         // 🔹 Todos los ores (incluye mods que usen c:ores)
         if (state.isIn(ALL_ORES)) return true;
+
+        // 🔹 Todos los ores (incluye mods que usen forge:ores)
+        if (state.isIn(FORGE_ORES)) return true;
 
         // 🔹 (Opcional) bloques compactados “valiosos”
         Block b = state.getBlock();

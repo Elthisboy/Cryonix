@@ -33,11 +33,11 @@ public class ItemInit {
 
     // Cargas Láser
     public static final Item LASER_CHARGE_LV1 = register("laser_charge_lv1",
-            new LaserChargeItem(new Item.Settings(), 50));
+            new LaserChargeItem(new Item.Settings(), 15));
     public static final Item LASER_CHARGE_LV2 = register("laser_charge_lv2",
-            new LaserChargeItem(new Item.Settings(), 100));
+            new LaserChargeItem(new Item.Settings(), 50));
     public static final Item LASER_CHARGE_LV3 = register("laser_charge_lv3",
-            new LaserChargeItem(new Item.Settings(), 200));
+            new LaserChargeItem(new Item.Settings(), 100));
 
 
     public static <T extends Item> T register(String name, T item) {
