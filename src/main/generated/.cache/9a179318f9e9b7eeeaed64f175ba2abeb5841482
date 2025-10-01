@@ -1,1 +1,9 @@
-// 1.21.1	2025-09-30T12:46:13.763476	Cryonix-Scanner-Gun/Recipes
+// 1.21.1	2025-09-30T21:30:19.0493988	Cryonix-Scanner-Gun/Recipes
+93e632b01320d3bfcdeef43e7d65a9702ee2be25 data\cryonix-scanner-gun\recipe\scanner_gun.json
+e45862467fcdea3cbc2e441295304a73d938508b data\cryonix-scanner-gun\recipe\laser_charge_lv2.json
+e77c55bbe412585ed5a9e60492d52aff28b67070 data\cryonix-scanner-gun\advancement\recipes\misc\laser_charge_lv1.json
+2d334c2258170abcf90723346cb2aeaf55227d2e data\cryonix-scanner-gun\advancement\recipes\tools\scanner_gun.json
+7a56bdc869d794ffb70ce2edaee4d4a5000209ac data\cryonix-scanner-gun\recipe\laser_charge_lv3.json
+32c976c2bdcff5f549d570dd9cf8d20c4b1a71b9 data\cryonix-scanner-gun\advancement\recipes\misc\laser_charge_lv2.json
+29acfba1d7545129f500ab163f2d2472ceac988c data\cryonix-scanner-gun\recipe\laser_charge_lv1.json
+29d927ef5a2318710bb1af4ce79c451ef0a08745 data\cryonix-scanner-gun\advancement\recipes\misc\laser_charge_lv3.json

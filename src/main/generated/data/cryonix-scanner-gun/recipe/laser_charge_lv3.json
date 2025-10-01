@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "minecraft:redstone_block"
+    },
+    "C": {
+      "item": "cryonix:laser_charge_lv2"
+    },
+    "D": {
+      "item": "minecraft:diamond"
+    }
+  },
+  "pattern": [
+    "C C",
+    " B ",
+    " D "
+  ],
+  "result": {
+    "count": 1,
+    "id": "cryonix:laser_charge_lv3"
+  }
+}

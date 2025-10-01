@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "B": {
+      "item": "minecraft:redstone_block"
+    },
+    "C": {
+      "item": "cryonix:laser_charge_lv2"
+    },
+    "D": {
+      "item": "minecraft:diamond"
+    },
+    "G": {
+      "item": "minecraft:glass_pane"
+    },
+    "W": {
+      "item": "minecraft:glowstone_dust"
+    }
+  },
+  "pattern": [
+    "GBC",
+    "DCW",
+    "BB "
+  ],
+  "result": {
+    "count": 1,
+    "id": "cryonix:scanner_gun"
+  }
+}

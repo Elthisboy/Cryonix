@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "Q": {
+      "item": "minecraft:quartz"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    }
+  },
+  "pattern": [
+    "RR",
+    "QQ"
+  ],
+  "result": {
+    "count": 1,
+    "id": "cryonix:laser_charge_lv1"
+  }
+}

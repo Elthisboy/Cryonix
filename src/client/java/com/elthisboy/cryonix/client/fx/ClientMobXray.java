@@ -62,7 +62,7 @@ public final class ClientMobXray {
         untilTick = mc.world.getTime() + dur;
 
         nextRefreshTick = 0;
-        System.out.println("[Cryonix] MobXray START center=" + center + " range=" + range + " dur=" + dur);
+        //System.out.println("[Cryonix] MobXray START center=" + center + " range=" + range + " dur=" + dur);
     }
 
     private static void onWorldRender(WorldRenderContext ctx) {
@@ -94,7 +94,7 @@ public final class ClientMobXray {
             Identifier id = Registries.ENTITY_TYPE.getId(ent.getType());
             if (id == null) continue;
 
-            // ✅ Si está en targets y ON -> true; si no está, decide con renderUnknown
+            // Si está en targets y ON -> true; si no está, decide con renderUnknown
             if (MobXrayState.shouldRender(id)) {
                 CACHE.add(ent);
             }
@@ -120,10 +120,9 @@ public final class ClientMobXray {
             Identifier id = Registries.ENTITY_TYPE.getId(e.getType());
             if (id == null) continue;
 
-            // ✅ Un solo punto de verdad
             if (!MobXrayState.shouldRender(id)) continue;
 
-            // ✅ Color: config o default (para mobs de mods no listados)
+            //  Color: config o default (para mobs de mods no listados)
             RGBA c = MobXrayState.colorForOrDefault(id);
             float r = c.r / 255f, g = c.g / 255f, b = c.b / 255f, a = c.a / 255f;
 

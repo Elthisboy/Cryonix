@@ -218,15 +218,15 @@ public class ScannerGunItem extends Item {
 
         // 3) Resultado + efectos
         if (finalHit == null || finalHit.getType() == HitResult.Type.MISS) {
-            player.sendMessage(Text.translatable("message.cryonix.scan.none"), true);
+            /// ////////////player.sendMessage(Text.translatable("message.cryonix.scan.none"), true);
 
         } else if (finalHit.getType() == HitResult.Type.BLOCK) {
             BlockHitResult bh = (BlockHitResult) finalHit;
             BlockPos pos = bh.getBlockPos();
             var state = world.getBlockState(pos);
             double dist = Math.sqrt(eye.squaredDistanceTo(Vec3d.ofCenter(pos)));
-            player.sendMessage(Text.translatable("message.cryonix.scan.block",
-                    state.getBlock().getName(), String.format("%.1f", dist)), true);
+            /// //////////// player.sendMessage(Text.translatable("message.cryonix.scan.block",
+            /// ////////////        state.getBlock().getName(), String.format("%.1f", dist)), true);
 
             // === XRAY (common->client bridge por reflexión) ===
             if (world.isClient) {
@@ -255,13 +255,10 @@ public class ScannerGunItem extends Item {
             EntityHitResult eh = (EntityHitResult) finalHit;
             Entity e = eh.getEntity();
             double dist = Math.sqrt(eye.squaredDistanceTo(e.getPos()));
-            player.sendMessage(Text.translatable("message.cryonix.scan.entity",
-                    e.getDisplayName(), String.format("%.1f", dist)), true);
-
-            // Glow removido: ya no aplica efecto al mob
+            /// //////////// player.sendMessage(Text.translatable("message.cryonix.scan.entity",
+            /// ////////////         e.getDisplayName(), String.format("%.1f", dist)), true);
 
 
-            // === XRAY (common->client bridge por reflexión) ===
             if (world.isClient) {
                 int range = getRangeFromGun(stack);
                 java.util.Set<net.minecraft.util.Identifier> recognized = computeRecognizedFromGun(stack);
@@ -275,16 +272,15 @@ public class ScannerGunItem extends Item {
                     );
                     m.invoke(null, e.getBlockPos(), range, recognized);
                 } catch (Throwable t) {
-                    // opcional: log interno
-                    // t.printStackTrace();
+
                 }
             }
-            // +++ X-Ray de mobs (CLIENTE)
+            // X-Ray de mobs
             if (world.isClient) {
                 int range = getRangeFromGun(stack);
                 int durationTicks = getScanDurationTicks(stack);
 
-                // X-Ray de MOBS (LLAMADA A start)
+                // X-Ray de MOBS
                 try {
                     Class<?> mob = Class.forName("com.elthisboy.cryonix.client.fx.ClientMobXray");
                     java.lang.reflect.Method mm = mob.getMethod(
@@ -316,7 +312,7 @@ public class ScannerGunItem extends Item {
     }
 
     private java.util.Set<net.minecraft.util.Identifier> computeRecognizedFromGun(ItemStack stack) {
-        // 🔹 devolvemos null o vacío, el cliente lo resolverá usando XrayState
+        // devolvemos null o vacío, el cliente lo resolverá usando XrayState
         return java.util.Collections.emptySet();
     }
     /* ====== Mano usada (origen del láser) ====== */
@@ -569,12 +565,11 @@ public class ScannerGunItem extends Item {
         for (MobHudRow r1 : mobRows) { mobsN.add(r1.name); mobsD.add(r1.dist); mobsId.add(r1.id); }
 
         // ====== Mensaje resumen ======
-        player.sendMessage(
-                Text.translatable("message.cryonix.scan.aoe",
-                        String.valueOf(totalOres),                 // total menas (sin agrupar)
-                        String.valueOf(entities.size())),          // total mobs (sin agrupar)
-                true
-        );
+       /// /////////////player.sendMessage(
+       /// /////////////        Text.translatable("message.cryonix.scan.aoe",
+       /// /////////////                String.valueOf(totalOres),                 // total menas (sin agrupar)
+       /// /////////////                String.valueOf(entities.size())),          // total mobs (sin agrupar)
+       /// /////////////true);
 
         // ====== Enviar al HUD (SOLO SERVIDOR) ======
         if (!world.isClient() && player instanceof ServerPlayerEntity spe) {

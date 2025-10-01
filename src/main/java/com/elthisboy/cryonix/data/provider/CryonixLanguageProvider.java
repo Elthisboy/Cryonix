@@ -30,7 +30,7 @@ public class CryonixLanguageProvider extends FabricLanguageProvider {
         addText(translationBuilder, ItemGroupInit.CRYONIX_NIX_TEXT, "Cryonix: Scanner-gun Mod");
 
 
-        // Items
+        //Items
         translationBuilder.add(ItemInit.SCANNER_GUN, "Scanner-Gun");
         translationBuilder.add(ItemInit.LASER_CHARGE_LV1, "Laser Charge Lv.1");
         translationBuilder.add(ItemInit.LASER_CHARGE_LV2, "Laser Charge Lv.2");
@@ -40,12 +40,15 @@ public class CryonixLanguageProvider extends FabricLanguageProvider {
         translationBuilder.add("message.cryonix.reload.none", "No Laser Charges or energy is full");
         translationBuilder.add("message.cryonix.cooldown", "Cooling down...");
         translationBuilder.add("message.cryonix.low_battery", "Low battery");
-        translationBuilder.add("message.cryonix.scan.none", "Nothing detected");
-        translationBuilder.add("message.cryonix.scan.block", "Block: %s — %s m");
-        translationBuilder.add("message.cryonix.scan.entity", "Entity: %s — %s m");
-        translationBuilder.add("message.cryonix.scan.aoe", "Around: %s ores, %s mobs");
 
-        // HUD
+        ////////////translationBuilder.add("message.cryonix.scan.none",   "Nothing detected");
+        ////////////translationBuilder.add("message.cryonix.scan.block",  "Block: %s — %s m");
+        ////////////translationBuilder.add("message.cryonix.scan.entity", "Entity: %s — %s m");
+        ////////////translationBuilder.add("message.cryonix.scan.aoe",    "Around: %s ores, %s mobs");
+
+
+
+        //HUD
         translationBuilder.add("hud.cryonix.scan.title", "Cryonix Scan");
         translationBuilder.add("hud.cryonix.scan.empty", "No detections");
         translationBuilder.add("hud.cryonix.nothing.found", "Nothing found");
